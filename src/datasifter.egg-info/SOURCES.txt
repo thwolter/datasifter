@@ -22,3 +22,7 @@ src/datasifter/registry/registry.py
 src/datasifter/tools/__init__.py
 src/datasifter/tools/reduce_step.py
 src/datasifter/tools/validate.py
+tests/test_integration_runner.py
+tests/test_phases.py
+tests/test_runner.py
+tests/test_tools.py
