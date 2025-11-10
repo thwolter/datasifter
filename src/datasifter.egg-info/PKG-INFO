@@ -1,0 +1,28 @@
+Metadata-Version: 2.4
+Name: datasifter
+Version: 0.1.0
+Summary: Reusable extraction orchestration core with pluggable adapters.
+Author-email: Thomas Wolter <support@riskary.de>
+License: MIT
+Project-URL: Homepage, https://github.com/thwolter/datasifter
+Project-URL: Documentation, https://github.com/thwolter/datasifter
+Project-URL: Issues, https://github.com/thwolter/datasifter/issues
+Keywords: llm,extraction,retrieval,orchestration
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.12
+Description-Content-Type: text/markdown
+Requires-Dist: pydantic>=2.8.0
+Requires-Dist: typing-extensions>=4.10.0
+Requires-Dist: langchain-core>=0.3.0
+
+# datasifter
+
+Core extraction orchestration primitives that can be reused across backends. Datasifter exposes:
+
+- Pydantic schemas and registries for describing document attributes.
+- Protocol-driven orchestration runner that wires retrieval, mapping, and persistence via adapters.
+- Validation, reduction, and threshold helpers for attribute-centric pipelines.
+
+The package intentionally ships without IO dependencies (database, message bus, FastAPI). Bring your own adapters that satisfy the provided protocols.

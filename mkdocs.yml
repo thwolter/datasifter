@@ -1,0 +1,7 @@
+site_name: DataSifter
+site_description: "Reusable extraction orchestration"
+theme:
+  name: material
+nav:
+  - Home: index.md
+  - Adapters: adapters.md
