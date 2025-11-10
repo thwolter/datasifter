@@ -1,11 +1,105 @@
-# Adapter Interfaces
+# Adapters & Contracts
 
-The runner orchestrates attribute extraction by collaborating with the following protocols:
+DataSifter intentionally avoids hard dependencies on storage engines, LLM providers, or messaging systems. Instead, it relies on a small set of `Protocol` interfaces located in `datasifter.interfaces`. Implement these adapters once per backend and reuse them anywhere you instantiate the runner.
 
-- **JobRepository** – create or resume extraction jobs and persist status transitions.
-- **AttributeStore** – persist final attribute payloads for a job.
-- **RetrievalProvider** – return ranked `RetrievedChunk` instances for a given attribute.
-- **MapEngine** – perform the LLM map step and produce `Candidate` objects.
-- **ProgressSink** – publish `StatusEvent` payloads to any transport (websocket, broker, logs).
+## Overview
 
-Each protocol lives in `datasifter.interfaces`. Reference implementations live in Metis, but any backend can write its own adapters that hit different databases or LLM providers.
+| Protocol | Responsibility | Typical backend implementation |
+| --- | --- | --- |
+| `JobRepository` | Persist job lifecycle (`prepare_job`, `update_status`, `refresh`, sequence numbers). | SQL table, Mongo collection, Redis hash. |
+| `AttributeStore` | Store the final `AttributeResult` for each spec. | JSON column, document DB, observability index. |
+| `RetrievalProvider` | Retrieve contextual `RetrievedChunk` objects before the map phase. | Vector DB query, OCR page fetcher, deterministic splitter. |
+| `MapEngine` | Run the LLM or heuristic mapper to produce `Candidate`s. | OpenAI/Azure clients, local vLLM, rule-based parser. |
+| `ProgressSink` | Publish `ExtractionStatusPayload` to downstream consumers. | Kafka topic, WebSocket broadcaster, logging sink. |
+
+All protocols are asynchronous and should avoid blocking the event loop.
+
+## JobRepository
+
+```python
+class JobRepository(Protocol):
+    async def prepare_job(...) -> JobState: ...
+    async def update_status(...) -> JobState: ...
+    async def refresh(self, job: JobState) -> JobState: ...
+    async def increment_sequence(self, job: JobState) -> int: ...
+```
+
+Implementation tips:
+
+- `prepare_job` should be idempotent; create a new row if `job` is `None`, or update timestamps if it already exists.
+- `increment_sequence` backs the optimistic concurrency built into some adapters (e.g., deduplicating status events). Persist and return the new integer atomically.
+- Persist error messages and timestamps inside `JobState` so `ExtractionOutcome` stays informative.
+
+## AttributeStore
+
+```python
+class AttributeStore(Protocol):
+    async def persist(
+        self, job: JobState, spec: AttributeSpec, result: AttributeResult
+    ) -> None: ...
+```
+
+- Persist both the raw value and the provenance (list of chunk identifiers) for auditability.
+- Consider storing a hash of `result.value` to simplify deduplication between runs.
+- Implementations should be idempotent; the runner might replay `persist` during retries if no acknowledgement was recorded.
+
+## RetrievalProvider
+
+```python
+class RetrievalProvider(Protocol):
+    async def retrieve(
+        *,
+        job: JobState,
+        request: ExtractionRequest,
+        attribute: AttributeSpec,
+        config: RetrievalConfig,
+    ) -> Sequence[RetrievedChunk]: ...
+```
+
+- Interpret `RetrievalConfig` however you want: vector similarity threshold, reranking flag, `top_k`, etc.
+- Each `RetrievedChunk` should contain the text, metadata, and an identifier (page, paragraph, table cell). This identifier later appears in provenance.
+- If you need to run multiple retrieval strategies (e.g., dense + sparse), aggregate the results before returning them; the runner will respect ordering and `top_m`.
+
+## MapEngine
+
+```python
+class MapEngine(Protocol):
+    async def extract_candidate(
+        *,
+        doc_type: str,
+        attribute: AttributeSpec,
+        chunk: RetrievedChunk,
+        attempt: int,
+        prompt_id: str | None = None,
+    ) -> Candidate: ...
+```
+
+- The runner injects `attempt` numbers so you can apply temperature annealing, fallback prompts, or context-window adaptations.
+- Pull prompt templates from `attribute.prompts` or `datasifter.prompts` to keep instructions versioned with code.
+- Return structured rationales to explain why the candidate value was selected; they become part of the reduction trace.
+
+## ProgressSink
+
+```python
+class ProgressSink(Protocol):
+    async def publish(self, payload: ExtractionStatusPayload) -> None: ...
+```
+
+- `payload.event` matches the `StatusEvent` enum (job started, attribute validated, etc.).
+- Persist `payload.snapshot` if you need point-in-time telemetry with counts of mapped chunks, validated attributes, and so on.
+- Multiple consumers can subscribe if you broadcast via a message broker or WebSocket hub.
+
+## Putting adapters together
+
+```python
+runner = ExtractionRunner(
+    job_repository=SqlJobRepository(db),
+    attribute_store=JsonAttributeStore(db),
+    retrieval_provider=HybridRetriever(vector_db, blob_storage),
+    map_engine_factory=lambda model: OpenAIMapEngine(model=model, api_key=env.API_KEY),
+    progress_sink=KafkaProgressSink(topic="datasifter.status"),
+    defaults=RunnerDefaults(...),
+)
+```
+
+Ensure every adapter is thoroughly unit-tested; place fixtures under `tests/fixtures/` to mock LLMs or databases as recommended in the repository guidelines.

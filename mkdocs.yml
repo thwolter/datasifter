@@ -2,6 +2,20 @@ site_name: DataSifter
 site_description: "Reusable extraction orchestration"
 theme:
   name: material
+markdown_extensions:
+  - admonition
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+extra_javascript:
+  - https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js
+  - javascripts/mermaid.js
 nav:
-  - Home: index.md
-  - Adapters: adapters.md
+  - Overview: index.md
+  - Getting Started:
+      - Installation & Requirements: getting-started.md
+      - Workflow Deep Dive: workflow.md
+  - Adapters & Contracts: adapters.md
+  - Examples & Recipes: examples.md
