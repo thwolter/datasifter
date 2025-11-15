@@ -19,3 +19,4 @@ nav:
       - Workflow Deep Dive: workflow.md
   - Adapters & Contracts: adapters.md
   - Examples & Recipes: examples.md
+  - Architecture & Deployment: architecture.md
