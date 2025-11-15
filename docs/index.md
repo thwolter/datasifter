@@ -13,7 +13,7 @@ DataSifter is a standalone extraction runtime that turns unstructured documents 
 
 | Area | Location | Purpose |
 | --- | --- | --- |
-| Runner & phases | `src/datasifter/runner.py`, `src/datasifter/graph/` | Coordinates the pipeline and tracks progress. |
+| Runner & graph | `src/datasifter/runner.py`, `src/datasifter/graph/` | Coordinates the pipeline and tracks progress. |
 | Interfaces | `src/datasifter/interfaces.py` | Contracts for job repositories, retrieval, mapping engines, and progress sinks. |
 | Schemas & prompts | `src/datasifter/schemas.py`, `src/datasifter/prompts.py` | Typed models for requests/results and LLM instructions. |
 | Registries | `src/datasifter/registry/` | Attribute specifications, thresholds, and metadata. |

@@ -1,4 +1,3 @@
-from . import phases
 from .context import (
     ExtractionCancelledError,
     ExtractionContext,
@@ -17,7 +16,6 @@ __all__ = [
     "ExtractionCancelledError",
     "ExtractionContext",
     "build_extraction_context",
-    "phases",
     "ProgressTracker",
     "AttributeState",
     "StatusEmitter",

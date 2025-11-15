@@ -8,7 +8,7 @@ DataSifter is intentionally split into a few stable packages:
 
 | Layer | Location | Notes |
 | --- | --- | --- |
-| Graph phases | `src/datasifter/graph/` | Stateless helpers that orchestrate retrieval, map, reduce, validate, and threshold phases. |
+| Graph pipeline | `src/datasifter/graph/` | Stateless helpers that orchestrate retrieval, map, reduce, validate, and threshold steps. |
 | Runner glue | `src/datasifter/runner.py` | Coordinates adapters, passes context between phases, and emits progress snapshots. |
 | Registries & schemas | `src/datasifter/registry/`, `src/datasifter/schemas.py` | Attribute metadata, prompts, validators, and typed models. |
 | Adapters | `src/datasifter/interfaces.py` | Protocol definitions for IO boundaries (jobs, storage, retrieval, LLM, and status sinks). |

@@ -12,6 +12,9 @@ src/datasifter.egg-info/SOURCES.txt
 src/datasifter.egg-info/dependency_links.txt
 src/datasifter.egg-info/requires.txt
 src/datasifter.egg-info/top_level.txt
+src/datasifter/adapters/__init__.py
+src/datasifter/adapters/postgres.py
+src/datasifter/adapters/stubs.py
 src/datasifter/graph/__init__.py
 src/datasifter/graph/chunking.py
 src/datasifter/graph/context.py
@@ -29,6 +32,8 @@ src/datasifter/registry/registry.py
 src/datasifter/tools/__init__.py
 src/datasifter/tools/reduce_step.py
 src/datasifter/tools/validate.py
+tests/test_adapters_postgres.py
+tests/test_graph_pipeline.py
 tests/test_integration_runner.py
 tests/test_phases.py
 tests/test_runner.py

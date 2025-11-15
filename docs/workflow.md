@@ -65,13 +65,13 @@ sequenceDiagram
 
 ### 3. Retrieval
 
-- `phases.retrieve_attribute_chunks()` calls your `RetrievalProvider.retrieve()` for every attribute.
+- The ingestion stage in `datasifter.graph.pipeline` ultimately calls your `RetrievalProvider.retrieve()` for every attribute.
 - Each retrieved chunk updates `ProgressTracker.map_calls_planned` so you can estimate remaining LLM calls.
 - Use the registry-provided retrieval hints (stored alongside specs) to decide whether to use OCR text, table segments, or vector search.
 
 ### 4. Mapping (LLM calls)
 
-- `phases.map_attribute_chunks()` iterates over chunks and invokes the `MapEngine` adapter.
+- The embedding stage iterates over chunks and invokes the configured `MapEngine` adapter.
 - Each `Candidate` contains the proposed value, a local confidence score, rationale text, and a record of the chunk it came from.
 - `StatusEmitter` publishes `StatusEvent.CHUNK_MAPPED` with the candidate metadata, allowing observers to surface intermediate clues.
 
