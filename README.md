@@ -7,6 +7,7 @@ Core extraction orchestration primitives that can be reused across backends. Dat
 - Validation, reduction, and threshold helpers for attribute-centric pipelines.
 
 The package intentionally ships without IO dependencies (database, message bus, FastAPI). Bring your own adapters that satisfy the provided protocols.
+Optional SQLModel/Postgres defaults live under `datasifter.adapters.postgres` so job repositories and attribute stores can be wired without rewriting boilerplate.
 
 ## Configuration
 

@@ -103,3 +103,55 @@ runner = ExtractionRunner(
 ```
 
 Ensure every adapter is thoroughly unit-tested; place fixtures under `tests/fixtures/` to mock LLMs or databases as recommended in the repository guidelines.
+
+## Postgres / SQLModel defaults
+
+DataSifter now ships optional helpers for SQLModel-backed Postgres deployments inside `datasifter.adapters.postgres`. They encapsulate the orchestration logic while letting you plug in your own SQLModel models and persistence helpers:
+
+```python
+from datasifter.adapters.postgres import SqlModelJobRepository, SqlModelAttributeStore
+from extraction.models import ExtractionJob, ExtractionJobStatus
+from extraction.persistence import (
+    create_extraction_job,
+    increment_sequence,
+    persist_attribute,
+    update_job_status,
+)
+
+job_repo = SqlModelJobRepository(
+    session=session,
+    job_model=ExtractionJob,
+    status_factory=lambda status: ExtractionJobStatus(status.value),
+    create_job=create_extraction_job,
+    update_job_status=update_job_status,
+    increment_sequence=increment_sequence,
+)
+
+attribute_store = SqlModelAttributeStore(
+    session=session,
+    job_model=ExtractionJob,
+    persist_attribute=persist_attribute,
+)
+```
+
+The helpers expect:
+
+- A SQLModel `AsyncSession` instance (`session`).
+- Your SQLModel job model (`job_model`) and status enum conversion (`status_factory`).
+- Coroutine callables that create jobs, update statuses, increment sequences, and persist individual attributes.
+
+Because the SQLModel helpers store the ORM instance on `JobState.context["orm"]`, attribute persistence and job refreshes remain efficient even across retries.
+
+## Adapter stubs
+
+To kickstart custom implementations without copying docstrings around, import the ready-made skeletons from `datasifter.adapters.stubs`:
+
+```python
+from datasifter.adapters.stubs import StubJobRepository, StubRetrievalProvider
+
+class FirestoreJobRepository(StubJobRepository):
+    async def prepare_job(...):
+        ...
+```
+
+Every stub raises `NotImplementedError` so your code fails fast until the implementation is filled in. Use them as scaffolding in sample projects or tutorials.

@@ -1,5 +1,17 @@
 from __future__ import annotations
 
+from .adapters import (
+    SqlModelAttributeStore,
+    SqlModelJobRepository,
+    StubAttributeStore,
+    StubJobRepository,
+    StubMapEngine,
+    StubProgressSink,
+    StubRetrievalProvider,
+    default_job_state_from_model,
+    default_tenant_resolver,
+    job_state_from_model,
+)
 from .runner import ExtractionOutcome, ExtractionRunner, RunnerDefaults
 from .settings import AdapterSettings, ExtractionSettings, Settings, get_settings
 from .schemas import (
@@ -28,6 +40,16 @@ __all__ = [
     "ExtractionRunner",
     "ExtractionOutcome",
     "RunnerDefaults",
+    "SqlModelJobRepository",
+    "SqlModelAttributeStore",
+    "StubJobRepository",
+    "StubAttributeStore",
+    "StubRetrievalProvider",
+    "StubMapEngine",
+    "StubProgressSink",
+    "job_state_from_model",
+    "default_job_state_from_model",
+    "default_tenant_resolver",
     "Settings",
     "AdapterSettings",
     "ExtractionSettings",
