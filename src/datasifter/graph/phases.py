@@ -3,22 +3,17 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
+from datasifter.graph.chunking import plan_chunks
 from datasifter.graph.context import ExtractionContext
-from datasifter.graph.progress import AttributeState
-from datasifter.schemas import (
-    AttributeResult,
-    AttributeSpec,
-    Candidate,
-    RetrievedChunk,
-    StatusEvent,
-    Thresholds,
+from datasifter.graph.embedding import run_embedding
+from datasifter.graph.enrichment import (
+    reduce_attribute as _reduce_attribute,
+    validate_attribute as _validate_attribute,
 )
-from datasifter.thresholds import abstain_output, passes_thresholds
-from datasifter.tools import apply_validation, reduce_candidates
-
-
-def _default_thresholds() -> Thresholds:
-    return Thresholds(min_confidence=0.65, min_chunks=1)
+from datasifter.graph.ingestion import run_ingestion
+from datasifter.graph.persistence import persist_attribute
+from datasifter.graph.progress import AttributeState
+from datasifter.schemas import AttributeResult, AttributeSpec, Candidate, RetrievedChunk
 
 
 async def retrieve_attribute_chunks(
@@ -26,22 +21,8 @@ async def retrieve_attribute_chunks(
     spec: AttributeSpec,
     attr_state: AttributeState,
 ) -> list[RetrievedChunk]:
-    chunks = list(
-        await context.retriever.retrieve(
-            job=context.job,
-            request=context.request,
-            attribute=spec,
-            config=context.retrieval_config,
-        )
-    )
-    if context.retrieval_config.top_m and context.retrieval_config.top_m < len(chunks):
-        map_chunks = list(chunks[: context.retrieval_config.top_m])
-    else:
-        map_chunks = list(chunks)
-
-    attr_state.planned = len(map_chunks)
-    context.progress.map_calls_planned += len(map_chunks)
-    return map_chunks
+    ingested = await run_ingestion(context, spec, attr_state)
+    return plan_chunks(context, spec, ingested, attr_state)
 
 
 async def map_attribute_chunks(
@@ -50,32 +31,7 @@ async def map_attribute_chunks(
     map_chunks: Sequence[RetrievedChunk],
     attr_state: AttributeState,
 ) -> list[Candidate]:
-    candidates: list[Candidate] = []
-    for chunk in map_chunks:
-        await context.ensure_active()
-        candidate = await context.map_engine.extract_candidate(
-            doc_type=context.request.doc_type,
-            attribute=spec,
-            chunk=chunk,
-            attempt=len(candidates) + 1,
-        )
-        candidates.append(candidate)
-        attr_state.mapped += 1
-        context.progress.map_calls_done += 1
-        await context.emitter.emit(
-            StatusEvent.CHUNK_MAPPED,
-            attribute_payload={
-                "name": spec.name,
-                "phase": "map",
-                "retrieval": candidate.retrieval.model_dump(mode="json"),
-                "candidate": {
-                    "value": candidate.value,
-                    "confidence_local": candidate.confidence_local,
-                    "rationale": candidate.rationale,
-                },
-            },
-        )
-    return candidates
+    return await run_embedding(context, spec, map_chunks, attr_state)
 
 
 async def reduce_attribute(
@@ -84,27 +40,7 @@ async def reduce_attribute(
     candidates: Sequence[Candidate],
     attr_state: AttributeState,
 ) -> Any:
-    aggregate = reduce_candidates(candidates)
-    context.progress.reduce_done += 1
-    attr_state.state = "reduced"
-    attr_state.confidence = aggregate.confidence
-    await context.ensure_active()
-    await context.emitter.emit(
-        StatusEvent.ATTRIBUTE_REDUCED,
-        attribute_payload={
-            "name": spec.name,
-            "phase": "reduce",
-            "aggregate": {
-                "value": aggregate.value,
-                "confidence": aggregate.confidence,
-                "provenance": list(aggregate.provenance),
-                "supporting": [
-                    cand.raw_json for cand in aggregate.supporting_candidates
-                ],
-            },
-        },
-    )
-    return aggregate
+    return await _reduce_attribute(context, spec, candidates, attr_state)
 
 
 async def validate_attribute(
@@ -114,28 +50,13 @@ async def validate_attribute(
     chunk_count: int,
     attr_state: AttributeState,
 ) -> AttributeResult:
-    validated = apply_validation(
-        attribute=spec,
-        value=aggregate.value,
-        confidence=aggregate.confidence,
-        chunk_count=chunk_count,
-        provenance=aggregate.provenance,
+    return await _validate_attribute(
+        context,
+        spec,
+        aggregate,
+        chunk_count,
+        attr_state,
     )
-    context.progress.validated += 1
-    attr_state.state = "validated"
-    attr_state.confidence = validated.confidence
-
-    await context.ensure_active()
-    await context.emitter.emit(
-        StatusEvent.ATTRIBUTE_VALIDATED,
-        attribute_payload={
-            "name": spec.name,
-            "phase": "validate",
-            "value": validated.value,
-            "issues": [issue.model_dump() for issue in validated.validation_issues],
-        },
-    )
-    return validated
 
 
 async def threshold_and_persist(
@@ -146,57 +67,14 @@ async def threshold_and_persist(
     chunk_count: int,
     attr_state: AttributeState,
 ) -> AttributeResult:
-    thresholds = spec.thresholds or _default_thresholds()
-    passes = passes_thresholds(validated, thresholds, chunk_count)
-    attr_state.state = "thresholded"
-    decision = "accept" if passes else "abstain"
-    await context.ensure_active()
-    await context.emitter.emit(
-        StatusEvent.ATTRIBUTE_THRESHOLDED,
-        attribute_payload={
-            "name": spec.name,
-            "phase": "threshold",
-            "decision": decision,
-            "thresholds": thresholds.model_dump(),
-        },
+    return await persist_attribute(
+        context,
+        spec,
+        validated,
+        candidates,
+        chunk_count,
+        attr_state,
     )
-
-    if not passes or context.request.dry_run:
-        result = abstain_output(spec.name, candidates)
-        attr_state.state = "abstained" if not passes else "persisted"
-        context.progress.attributes_done += 1
-        await context.ensure_active()
-        await context.emitter.emit(
-            StatusEvent.ATTRIBUTE_PERSISTED,
-            attribute_payload={
-                "name": spec.name,
-                "phase": "persist",
-                "value": result.value,
-                "confidence": result.confidence,
-                "status": result.status,
-            },
-            include_snapshot=True,
-        )
-        return result
-
-    await context.attribute_store.persist(context.job, spec, validated)
-    context.progress.persisted += 1
-    context.progress.attributes_done += 1
-    attr_state.state = "persisted"
-    attr_state.confidence = validated.confidence
-    await context.ensure_active()
-    await context.emitter.emit(
-        StatusEvent.ATTRIBUTE_PERSISTED,
-        attribute_payload={
-            "name": spec.name,
-            "phase": "persist",
-            "value": validated.value,
-            "confidence": validated.confidence,
-            "status": validated.status,
-        },
-        include_snapshot=True,
-    )
-    return validated
 
 
 __all__ = [

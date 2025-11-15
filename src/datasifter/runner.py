@@ -3,8 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable, Sequence
 
-from datasifter.graph import phases
 from datasifter.graph.context import ExtractionCancelledError, build_extraction_context
+from datasifter.graph.pipeline import AttributeExtractionGraph, build_default_graph
 from datasifter.graph.progress import AttributeState, ProgressTracker
 from datasifter.graph.status import StatusEmitter
 from datasifter.interfaces import (
@@ -56,6 +56,7 @@ class ExtractionRunner:
         defaults: RunnerDefaults,
         progress_sink: ProgressSink | None = None,
         spec_resolver: AttributeSpecResolver = get_attribute_specs,
+        graph: AttributeExtractionGraph | None = None,
     ) -> None:
         self._job_repo = job_repository
         self._attribute_store = attribute_store
@@ -64,6 +65,7 @@ class ExtractionRunner:
         self._defaults = defaults
         self._progress_sink = progress_sink
         self._spec_resolver = spec_resolver
+        self._graph = graph or build_default_graph()
 
     def _resolve_model(self, request: ExtractionRequest) -> str:
         return request.model or self._defaults.model_name
@@ -140,26 +142,7 @@ class ExtractionRunner:
                     attribute_payload={"name": spec.name, "phase": "retrieve"},
                     include_snapshot=True,
                 )
-                map_chunks = await phases.retrieve_attribute_chunks(
-                    context, spec, attr_state
-                )
-                candidates = await phases.map_attribute_chunks(
-                    context, spec, map_chunks, attr_state
-                )
-                aggregate = await phases.reduce_attribute(
-                    context, spec, candidates, attr_state
-                )
-                validated = await phases.validate_attribute(
-                    context, spec, aggregate, len(map_chunks), attr_state
-                )
-                results[spec.name] = await phases.threshold_and_persist(
-                    context,
-                    spec,
-                    validated,
-                    candidates,
-                    len(map_chunks),
-                    attr_state,
-                )
+                results[spec.name] = await self._graph.run_attribute(context, spec)
 
             job_state = await self._job_repo.update_status(
                 job_state, status=JobStatus.COMPLETED

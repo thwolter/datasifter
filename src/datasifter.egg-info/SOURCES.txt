@@ -5,6 +5,7 @@ src/datasifter/interfaces.py
 src/datasifter/prompts.py
 src/datasifter/runner.py
 src/datasifter/schemas.py
+src/datasifter/settings.py
 src/datasifter/thresholds.py
 src/datasifter.egg-info/PKG-INFO
 src/datasifter.egg-info/SOURCES.txt
@@ -12,8 +13,14 @@ src/datasifter.egg-info/dependency_links.txt
 src/datasifter.egg-info/requires.txt
 src/datasifter.egg-info/top_level.txt
 src/datasifter/graph/__init__.py
+src/datasifter/graph/chunking.py
 src/datasifter/graph/context.py
+src/datasifter/graph/embedding.py
+src/datasifter/graph/enrichment.py
+src/datasifter/graph/ingestion.py
+src/datasifter/graph/persistence.py
 src/datasifter/graph/phases.py
+src/datasifter/graph/pipeline.py
 src/datasifter/graph/progress.py
 src/datasifter/graph/status.py
 src/datasifter/registry/__init__.py
@@ -25,4 +32,5 @@ src/datasifter/tools/validate.py
 tests/test_integration_runner.py
 tests/test_phases.py
 tests/test_runner.py
+tests/test_settings.py
 tests/test_tools.py
