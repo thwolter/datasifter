@@ -41,10 +41,10 @@ class ExtractionSettings(BaseModel):
     """Execution settings that mirror Metis' defaults without the IO bindings."""
 
     default_model: str = Field(
-        default="openai:gpt-4o-mini", description="LLM used when the request omits one."
+        default="openai:gpt-5.1-mini", description="LLM used when the request omits one."
     )
     model_version: str = Field(
-        default="2024-06-01", description="Version tag persisted alongside results."
+        default="2025-11-13", description="Version tag persisted alongside results."
     )
     retrieval: RetrievalConfig = Field(
         default_factory=RetrievalConfig,
