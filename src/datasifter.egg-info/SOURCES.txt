@@ -22,7 +22,6 @@ src/datasifter/graph/embedding.py
 src/datasifter/graph/enrichment.py
 src/datasifter/graph/ingestion.py
 src/datasifter/graph/persistence.py
-src/datasifter/graph/phases.py
 src/datasifter/graph/pipeline.py
 src/datasifter/graph/progress.py
 src/datasifter/graph/status.py
@@ -35,7 +34,6 @@ src/datasifter/tools/validate.py
 tests/test_adapters_postgres.py
 tests/test_graph_pipeline.py
 tests/test_integration_runner.py
-tests/test_phases.py
 tests/test_runner.py
 tests/test_settings.py
 tests/test_tools.py

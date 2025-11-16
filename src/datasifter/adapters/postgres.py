@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Protocol, TypeVar
+from typing import Any, Callable, Protocol, TypeVar, Generic
 from uuid import UUID
 
 from datasifter.interfaces import AttributeStore, JobRepository
@@ -13,15 +13,7 @@ from datasifter.schemas import (
     RetrievalConfig,
 )
 
-
-class AsyncSessionProtocol(Protocol):
-    async def get(self, model: type[Any], obj_id: Any) -> Any | None: ...
-
-    def add(self, instance: Any) -> None: ...
-
-    async def flush(self) -> None: ...
-
-    async def refresh(self, instance: Any) -> None: ...
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 
 class JobModelProtocol(Protocol):
@@ -49,7 +41,7 @@ StatusT = TypeVar("StatusT")
 class CreateJobFn(Protocol[ModelT]):
     async def __call__(
         self,
-        session: AsyncSessionProtocol,
+        session: AsyncSession,
         *,
         tenant_id: UUID,
         doc_id: UUID,
@@ -66,7 +58,8 @@ class CreateJobFn(Protocol[ModelT]):
 class UpdateJobStatusFn(Protocol[ModelT, StatusT]):
     async def __call__(
         self,
-        session: AsyncSessionProtocol,
+        session: AsyncSession,
+        *,
         job: ModelT,
         status: StatusT,
         error: str | None = None,
@@ -74,13 +67,13 @@ class UpdateJobStatusFn(Protocol[ModelT, StatusT]):
 
 
 class IncrementSequenceFn(Protocol[ModelT]):
-    async def __call__(self, session: AsyncSessionProtocol, job: ModelT) -> int: ...
+    async def __call__(self, session: AsyncSession, job: ModelT) -> int: ...
 
 
 class PersistAttributeFn(Protocol[ModelT]):
     async def __call__(
         self,
-        session: AsyncSessionProtocol,
+        session: AsyncSession,
         *,
         tenant_id: UUID,
         job: ModelT,
@@ -142,11 +135,11 @@ def default_options_builder(request: ExtractionRequest) -> dict[str, Any]:
     return {"dry_run": request.dry_run}
 
 
-class SqlModelJobRepository(JobRepository):
+class SqlModelJobRepository(Generic[ModelT, StatusT], JobRepository):
     def __init__(
         self,
         *,
-        session: AsyncSessionProtocol,
+        session: AsyncSession,
         job_model: type[ModelT],
         status_factory: StatusFactory,
         create_job: CreateJobFn[ModelT],
@@ -267,7 +260,7 @@ class SqlModelAttributeStore(AttributeStore):
     def __init__(
         self,
         *,
-        session: AsyncSessionProtocol,
+        session: AsyncSession,
         job_model: type[ModelT],
         persist_attribute: PersistAttributeFn[ModelT],
     ) -> None:
@@ -289,7 +282,7 @@ class SqlModelAttributeStore(AttributeStore):
 
 
 async def _ensure_job_model(
-    session: AsyncSessionProtocol,
+    session: AsyncSession,
     job_model: type[ModelT],
     state: JobState,
 ) -> ModelT:

@@ -12,6 +12,7 @@ dependencies = [
     "pydantic>=2.8.0",
     "typing-extensions>=4.10.0",
     "langchain-core>=0.3.0",
+    "sqlmodel>=0.0.27",
 ]
 keywords = ["llm", "extraction", "retrieval", "orchestration"]
 classifiers = [

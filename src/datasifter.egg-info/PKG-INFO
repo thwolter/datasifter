@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: datasifter
-Version: 0.2.0
+Version: 0.2.1
 Summary: Reusable extraction orchestration core with pluggable adapters.
 Author-email: Thomas Wolter <support@riskary.de>
 License: MIT
@@ -16,6 +16,7 @@ Description-Content-Type: text/markdown
 Requires-Dist: pydantic>=2.8.0
 Requires-Dist: typing-extensions>=4.10.0
 Requires-Dist: langchain-core>=0.3.0
+Requires-Dist: sqlmodel>=0.0.27
 
 # datasifter
 
